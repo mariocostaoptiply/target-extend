@@ -11,7 +11,7 @@ python = "<3.11,>=3.7.1"
 requests = "^2.25.1"
 singer-sdk = "^0.9.0"
 target-hotglue = "^0.0.2"
-backoff = "^1.11.1"
+backoff = "==1.8.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.5"
