@@ -34,3 +34,4 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
 target-extend = "target_extend.target:TargetExtend.cli"
+target-extend-commerce = "target_extend.target:TargetExtend.cli"
