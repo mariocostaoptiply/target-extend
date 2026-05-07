@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
 from singer_sdk import typing as th
@@ -49,6 +50,15 @@ def parse_line_items(record: Dict[str, Any]) -> List[Dict[str, Any]]:
     return line_items
 
 
+def _format_datetime(value: Any) -> Any:
+    """Return JSON-serializable date/datetime values."""
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    return value
+
+
 def _validate_quantity(order_id: Any, product_remote_id: Any, quantity: Any) -> float:
     """Validate and normalize line quantity."""
     if _is_blank(quantity):
@@ -90,7 +100,7 @@ def build_purchase_order_payload(
         )
 
     line_items = parse_line_items(record)
-    delivery_date = record.get("created_at")
+    delivery_date = _format_datetime(record.get("created_at"))
 
     header: Dict[str, Any] = {
         "supplier": {"supplierNumber": str(supplier_remote_id)},

@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 
 import pytest
 
@@ -107,3 +108,13 @@ def test_created_at_is_optional():
     assert "requestedDeliveryDate" not in payload["header"]
     assert "requestedDeliveryDate" not in payload["rows"][0]
     assert "expectedDeliveryDate" not in payload["rows"][0]
+
+
+def test_created_at_datetime_is_serialized():
+    created_at = datetime(2026, 6, 26, tzinfo=timezone.utc)
+
+    payload = build_purchase_order_payload(valid_record(created_at=created_at), CONFIG)
+
+    assert payload["header"]["requestedDeliveryDate"] == "2026-06-26T00:00:00+00:00"
+    assert payload["rows"][0]["requestedDeliveryDate"] == "2026-06-26T00:00:00+00:00"
+    json.dumps(payload)
