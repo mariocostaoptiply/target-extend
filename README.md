@@ -34,7 +34,7 @@ The target requires the following configuration:
 - `client` (required): Extend client path segment
 - `username` (required): Extend username
 - `password` (required): Extend password
-- `export_warehouse_code` (required): Warehouse code to send on purchase orders
+- `export_warehouse_code` (optional): Warehouse code to send on purchase orders. If omitted, the target does not send `header.warehouse`.
 - `timeout` (optional): Request timeout in seconds (default: `300`)
 
 ### Example Configuration
@@ -144,7 +144,7 @@ The target creates this Extend payload:
 
 Field mapping:
 
-- `config.export_warehouse_code` -> `header.warehouse`
+- `config.export_warehouse_code` -> `header.warehouse` when configured
 - `supplier_remoteId` -> `header.supplier.supplierNumber`
 - `id` -> `header.reference`
 - `created_at` -> `header.requestedDeliveryDate`
@@ -160,7 +160,6 @@ The target does not send prices, currency, notes, supplier product numbers, ship
 
 The target fails the whole purchase order if:
 
-- `export_warehouse_code` is missing
 - `supplier_remoteId` is missing
 - `line_items` is missing, empty, invalid JSON, or not a list
 - any line is missing `product_remoteId`

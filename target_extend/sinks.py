@@ -82,10 +82,6 @@ def build_purchase_order_payload(
     order_id = record.get("id")
 
     warehouse_code = config.get("export_warehouse_code")
-    if _is_blank(warehouse_code):
-        raise ExtendValidationError(
-            "export_warehouse_code is required for target-extend purchase orders"
-        )
 
     supplier_remote_id = record.get("supplier_remoteId")
     if _is_blank(supplier_remote_id):
@@ -97,10 +93,11 @@ def build_purchase_order_payload(
     delivery_date = record.get("created_at")
 
     header: Dict[str, Any] = {
-        "warehouse": str(warehouse_code),
         "supplier": {"supplierNumber": str(supplier_remote_id)},
         "reference": str(order_id),
     }
+    if not _is_blank(warehouse_code):
+        header["warehouse"] = str(warehouse_code)
     if not _is_blank(delivery_date):
         header["requestedDeliveryDate"] = delivery_date
 

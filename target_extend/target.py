@@ -41,8 +41,8 @@ class TargetExtend(TargetHotglue):
         th.Property(
             "export_warehouse_code",
             th.StringType,
-            required=True,
-            description="Warehouse code to send on created purchase orders",
+            required=False,
+            description="Optional warehouse code to send on created purchase orders",
         ),
         th.Property(
             "timeout",

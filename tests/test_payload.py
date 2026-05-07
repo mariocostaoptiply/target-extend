@@ -57,12 +57,13 @@ def test_builds_valid_purchase_order_payload():
     }
 
 
-def test_missing_warehouse_config_fails():
+def test_missing_warehouse_config_omits_warehouse():
     config = dict(CONFIG)
     config.pop("export_warehouse_code")
 
-    with pytest.raises(ExtendValidationError, match="export_warehouse_code is required"):
-        build_purchase_order_payload(valid_record(), config)
+    payload = build_purchase_order_payload(valid_record(), config)
+
+    assert "warehouse" not in payload["header"]
 
 
 def test_missing_supplier_remote_id_fails():
