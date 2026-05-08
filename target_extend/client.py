@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any, Dict, Optional
 
 import backoff
@@ -10,6 +11,9 @@ import requests
 from singer_sdk.exceptions import RetriableAPIError
 
 from target_extend.auth import ExtendAuth
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class ExtendClient:
@@ -45,6 +49,11 @@ class ExtendClient:
     )
     def post_purchase_order(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Create a purchase order in Extend and return parsed JSON response."""
+        LOGGER.info(
+            "REQUEST - endpoint: %s, request_body: %s",
+            f"/v1_0/{self.client}/PurchaseOrders",
+            payload,
+        )
         response = requests.post(
             self.purchase_orders_endpoint(),
             headers=self.auth.headers,
