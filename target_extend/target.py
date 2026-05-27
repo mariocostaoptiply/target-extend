@@ -11,7 +11,7 @@ from target_extend.sinks import BuyOrdersSink
 class TargetExtend(TargetHotglue):
     """Hotglue Singer target for Extend Commerce."""
 
-    name = "target-extend"
+    name = "target-extend"  # type: ignore[assignment]
 
     config_jsonschema = th.PropertiesList(
         th.Property(
@@ -52,8 +52,8 @@ class TargetExtend(TargetHotglue):
         ),
     ).to_dict()
 
-    SINK_TYPES = [BuyOrdersSink]
+    SINK_TYPES = [BuyOrdersSink]  # type: ignore[assignment]
 
 
 if __name__ == "__main__":
-    TargetExtend.cli()
+    TargetExtend.cli()  # type: ignore[operator]

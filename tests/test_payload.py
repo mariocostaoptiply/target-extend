@@ -1,5 +1,5 @@
-import json
 from datetime import datetime, timezone
+import json
 
 import pytest
 
@@ -15,61 +15,82 @@ CONFIG = {
 }
 
 
+def valid_line(**overrides):
+    line = {
+        "product_remoteId": "10001",
+        "quantity": 10,
+        "unitPrice": 12.34,
+        "vatPercent": 0.0,
+        "currency": "USD",
+        "purchase_unit": "ST",
+        "product_unit": "ST",
+        "expectedDeliveryDate": "2026-06-26T00:00:00Z",
+    }
+    line.update(overrides)
+    return line
+
+
 def valid_record(**overrides):
     record = {
-        "id": "12345",
-        "supplier_remoteId": "SUP-1",
-        "created_at": "2026-05-15T00:00:00Z",
-        "line_items": json.dumps(
-            [
-                {"product_remoteId": "PROD-1", "quantity": 2},
-                {"product_remoteId": "PROD-2", "quantity": "3"},
-            ]
-        ),
+        "id": 1000001,
+        "externalid": "OP-1000001",
+        "supplier_remoteId": 123,
+        "supplierAgreementNumber": 123,
+        "Warehouse": "DEMO_WAREHOUSE_RECORD",
+        "currency": "USD",
+        "created_at": "2026-06-26T00:00:00.000000Z",
+        "line_items": json.dumps([valid_line()]),
     }
     record.update(overrides)
     return record
 
 
-def test_builds_valid_purchase_order_payload():
+def test_builds_extend_purchase_order_payload_from_enriched_buy_order():
     payload = build_purchase_order_payload(valid_record(), CONFIG)
 
     assert payload == {
         "header": {
-            "warehouse": "DEMO_WAREHOUSE",
-            "supplier": {"supplierNumber": "SUP-1"},
-            "reference": "12345",
-            "requestedDeliveryDate": "2026-05-15T00:00:00Z",
+            "warehouse": "DEMO_WAREHOUSE_RECORD",
+            "supplier": {"supplierAgreementNumber": 123},
+            "reference": "OP-1000001",
         },
         "rows": [
             {
-                "productNumber": "PROD-1",
-                "purchaseDataProductUnit": {"quantity": 2.0, "unit": "pcs"},
-                "requestedDeliveryDate": "2026-05-15T00:00:00Z",
-                "expectedDeliveryDate": "2026-05-15T00:00:00Z",
-            },
-            {
-                "productNumber": "PROD-2",
-                "purchaseDataProductUnit": {"quantity": 3.0, "unit": "pcs"},
-                "requestedDeliveryDate": "2026-05-15T00:00:00Z",
-                "expectedDeliveryDate": "2026-05-15T00:00:00Z",
-            },
+                "productNumber": 10001,
+                "purchaseDataPurchaseUnit": {"quantity": 10.0, "unit": "ST"},
+                "purchaseDataProductUnit": {
+                    "quantity": 10.0,
+                    "unit": "ST",
+                    "unitPrice": 12.34,
+                    "vatPercent": 0.0,
+                    "currency": "USD",
+                },
+                "expectedDeliveryDate": "2026-06-26T00:00:00Z",
+            }
         ],
     }
 
 
-def test_missing_warehouse_config_omits_warehouse():
+def test_config_warehouse_is_fallback_when_record_has_no_warehouse():
+    payload = build_purchase_order_payload(valid_record(Warehouse=None), CONFIG)
+
+    assert payload["header"]["warehouse"] == "DEMO_WAREHOUSE"
+
+
+def test_missing_warehouse_omits_warehouse():
     config = dict(CONFIG)
     config.pop("export_warehouse_code")
 
-    payload = build_purchase_order_payload(valid_record(), config)
+    payload = build_purchase_order_payload(valid_record(Warehouse=None), config)
 
     assert "warehouse" not in payload["header"]
 
 
-def test_missing_supplier_remote_id_fails():
-    with pytest.raises(ExtendValidationError, match="supplier_remoteId is required"):
-        build_purchase_order_payload(valid_record(supplier_remoteId=""), CONFIG)
+def test_missing_supplier_agreement_number_fails():
+    with pytest.raises(
+        ExtendValidationError, match="supplierAgreementNumber is required"
+    ):
+        build_purchase_order_payload(valid_record(supplierAgreementNumber=""), CONFIG)
 
 
 def test_missing_line_items_fails():
@@ -81,7 +102,7 @@ def test_missing_line_items_fails():
 
 
 def test_missing_product_remote_id_fails_with_line_index():
-    record = valid_record(line_items=json.dumps([{"quantity": 1}]))
+    record = valid_record(line_items=json.dumps([valid_line(product_remoteId="")]))
 
     with pytest.raises(
         ExtendValidationError,
@@ -91,30 +112,48 @@ def test_missing_product_remote_id_fails_with_line_index():
 
 
 def test_invalid_quantity_fails_with_product_remote_id():
-    record = valid_record(
-        line_items=json.dumps([{"product_remoteId": "PROD-1", "quantity": 0}])
-    )
+    record = valid_record(line_items=json.dumps([valid_line(quantity=0)]))
 
     with pytest.raises(
         ExtendValidationError,
-        match="product_remoteId PROD-1: quantity must be > 0",
+        match="product_remoteId 10001: quantity must be > 0",
     ):
         build_purchase_order_payload(record, CONFIG)
 
 
-def test_created_at_is_optional():
-    payload = build_purchase_order_payload(valid_record(created_at=None), CONFIG)
+def test_missing_currency_uses_record_currency_fallback():
+    record = valid_record(line_items=json.dumps([valid_line(currency=None)]))
+
+    payload = build_purchase_order_payload(record, CONFIG)
+
+    assert payload["rows"][0]["purchaseDataProductUnit"]["currency"] == "USD"
+
+
+def test_missing_expected_delivery_date_uses_created_at_fallback():
+    record = valid_record(
+        line_items=json.dumps([valid_line(expectedDeliveryDate=None)])
+    )
+
+    payload = build_purchase_order_payload(record, CONFIG)
+
+    assert payload["rows"][0]["expectedDeliveryDate"] == "2026-06-26T00:00:00.000000Z"
+
+
+def test_does_not_send_requested_delivery_date():
+    payload = build_purchase_order_payload(valid_record(), CONFIG)
 
     assert "requestedDeliveryDate" not in payload["header"]
     assert "requestedDeliveryDate" not in payload["rows"][0]
-    assert "expectedDeliveryDate" not in payload["rows"][0]
 
 
-def test_created_at_datetime_is_serialized():
+def test_created_at_datetime_fallback_is_serialized():
     created_at = datetime(2026, 6, 26, tzinfo=timezone.utc)
+    record = valid_record(
+        created_at=created_at,
+        line_items=json.dumps([valid_line(expectedDeliveryDate=None)]),
+    )
 
-    payload = build_purchase_order_payload(valid_record(created_at=created_at), CONFIG)
+    payload = build_purchase_order_payload(record, CONFIG)
 
-    assert payload["header"]["requestedDeliveryDate"] == "2026-06-26T00:00:00+00:00"
-    assert payload["rows"][0]["requestedDeliveryDate"] == "2026-06-26T00:00:00+00:00"
+    assert payload["rows"][0]["expectedDeliveryDate"] == "2026-06-26T00:00:00+00:00"
     json.dumps(payload)
